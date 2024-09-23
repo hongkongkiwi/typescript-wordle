@@ -4,8 +4,17 @@ import promptSync from 'prompt-sync'; // Import prompt-sync for user input
 const prompt = promptSync(); // Initialize prompt-sync
 
 const readWordsFile = (filePath: string): string[] => {
+  if (!fs.existsSync(filePath)) {
+    console.error(`File not found: ${filePath}`);
+    process.exit(1);
+  }
   const file = fs.readFileSync(filePath, 'utf-8');
-  return file.split('\n').map(line => line.trim().toUpperCase());
+  const words = file.split('\n').map(line => line.trim().toUpperCase());
+  if (words.length < 2) {
+    console.error(`The words file must contain at least 2 words.`);
+    process.exit(1);
+  }
+  return words;
 };
 
 export const formatGuess = (word: string, guess: string, matchedChars: Set<string>): string => {
@@ -14,7 +23,7 @@ export const formatGuess = (word: string, guess: string, matchedChars: Set<strin
   }
   let outputString = '';
   for (let i = 0; i < guess.length; i++) {
-    if (word.includes(guess[i]) && (i > word.length || guess[i] !== word[i])) {
+    if (word.includes(guess[i]) && (i >= word.length || guess[i] !== word[i])) {
       outputString += 'Y';
     } else if (i < word.length && guess[i] === word[i]) {
       outputString += 'G';
@@ -26,46 +35,71 @@ export const formatGuess = (word: string, guess: string, matchedChars: Set<strin
   return outputString;
 };
 
-export const handler = (totalRounds: number = 2, wordsFilePath: string = './words.txt') => {
+export const handler = (totalGuesses: number = 6, wordsFilePath: string = './words.txt') => {
   const words = readWordsFile(wordsFilePath);
   let roundCounter = 0;
+  let previousWord = '';
 
-  const handleExit = () => {
-    console.log(`\nYou've played ${roundCounter} rounds! Goodbye!`);
+  const handleExit = (roundsPlayed: number = 0, wins: number = 0, losses: number = 0) => {
+    console.log(`You have won ${wins} rounds and lost ${losses} rounds!`);
     process.exit();
   };
 
-  process.on('SIGINT', handleExit);
+  process.on('SIGINT', () => handleExit(roundCounter, wins, losses));
 
-  while (roundCounter < totalRounds) {
-    console.log('New Game Started!');
+  let losses = 0;
+  let wins = 0;
+
+  while (true) {
+    let guessCount = totalGuesses;
+    if (guessCount > 0) {
+      console.log(`New Game Started! Round ${roundCounter}, Allowed Guesses: ${guessCount}`);
+    } else {
+      console.log(`New Game Started! Round ${roundCounter}, Unlimited Guesses!`);
+    }
+
     // Output a random word from the list
-    const randomWord = words[Math.floor(Math.random() * words.length)];
-    console.log('Random word has been selected');
+    let randomWord;
+    do {
+      randomWord = words[Math.floor(Math.random() * words.length)];
+    } while (randomWord === previousWord);
+    previousWord = randomWord;
+    console.log('New random word has been selected');
 
     // Guess from the user
     let userCorrect = false;
-    while (!userCorrect) {
+    while (!userCorrect && (guessCount > 0 || totalGuesses <= 0)) {
       let matchedChars = new Set<string>();
       const promptResponse = prompt('Enter your guess: ');
       if (promptResponse === null) {
         console.log('You pressed Ctrl+C. Exiting...');
-        process.exit();
+        handleExit(roundCounter, wins, losses);
       } else if (!promptResponse.trim()) {
-        console.log('Empty guess');
+        if (totalGuesses > 0) {
+          console.log(`> Remaining Guesses: ${guessCount}`);
+        }
         continue;
       }
       const userGuess = promptResponse.toUpperCase();
+      if (totalGuesses > 0) {
+        guessCount--;
+      }
       if (userGuess === randomWord) {
         console.log('You guessed correctly! You won!');
-        roundCounter++;
         userCorrect = true; // Exit the current round
+        wins++;
       } else {
         const formattedGuess = formatGuess(randomWord, userGuess, matchedChars);
         console.log(formattedGuess); // Output feedback to user
+        if (totalGuesses > 0) {
+          console.log(`> Remaining Guesses: ${guessCount}`);
+        }
       }
-    };
-  };
-
-  handleExit();
+      if (guessCount === 0 && !userCorrect && totalGuesses > 0) {
+        console.log(`You lost! The word was ${randomWord}`);
+        losses++;
+      }
+    }
+    roundCounter++;
+  }
 };

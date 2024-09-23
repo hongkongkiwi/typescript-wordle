@@ -1,4 +1,6 @@
 import { handler } from './functions';
 
+const GUESSES_ALLOWED = 6;
+
 // Start the game
-handler();
+handler(GUESSES_ALLOWED);
