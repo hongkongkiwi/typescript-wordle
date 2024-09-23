@@ -1,0 +1,22 @@
+{
+  "name": "wordle-for-fun",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "ts-node test.ts",
+    "start": "ts-node index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.5.5",
+    "@types/prompt-sync": "^4.2.3",
+    "@types/typescript": "^0.4.29",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "prompt-sync": "^4.2.0"
+  }
+}
